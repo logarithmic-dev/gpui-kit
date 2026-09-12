@@ -340,9 +340,16 @@ impl<E: ParentElement + Styled + IntoElement + 'static> Element for ContextMenu<
 
                                 // Set up the subscription for dismiss handling
                                 let _subscription = window.subscribe(&menu, cx, {
-                                    let shared_state = shared_state.clone();
+                                    // State owns the menu and this subscription. A strong capture
+                                    // would keep all three alive after the trigger/window closes.
+                                    let shared_state = Rc::downgrade(&shared_state);
                                     move |_, _: &DismissEvent, window, _cx| {
-                                        shared_state.borrow_mut().open = false;
+                                        if let Some(shared_state) = shared_state.upgrade() {
+                                            let mut state = shared_state.borrow_mut();
+                                            state.open = false;
+                                            state.menu_view = None;
+                                            state._subscription = None;
+                                        }
                                         window.refresh();
                                     }
                                 });
@@ -381,11 +388,13 @@ mod tests {
     struct TestRoot {
         content_focus: FocusHandle,
         received: Rc<Cell<bool>>,
+        menu: Rc<RefCell<Option<gpui::WeakEntity<PopupMenu>>>>,
     }
 
     impl Render for TestRoot {
         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
             let received = self.received.clone();
+            let menu = self.menu.clone();
             div()
                 .size_full()
                 .child(
@@ -403,7 +412,10 @@ mod tests {
                             div()
                                 .id("tab")
                                 .size_full()
-                                .context_menu(|menu, _, _| menu.menu("Close", Box::new(RemoveTab))),
+                                .context_menu(move |value, _, cx| {
+                                    *menu.borrow_mut() = Some(cx.weak_entity());
+                                    value.menu("Close", Box::new(RemoveTab))
+                                }),
                         ),
                 )
         }
@@ -417,14 +429,17 @@ mod tests {
         });
 
         let received = Rc::new(Cell::new(false));
+        let menu = Rc::new(RefCell::new(None));
         let (root, cx) = cx.add_window_view({
             let received = received.clone();
+            let menu = menu.clone();
             move |window, cx| {
                 let content_focus = cx.focus_handle();
                 content_focus.focus(window, cx);
                 TestRoot {
                     content_focus,
                     received,
+                    menu,
                 }
             }
         });
@@ -462,7 +477,13 @@ mod tests {
         // opened, keeping the dangling-focus fix (#2614).
         cx.update(|window, cx| {
             assert_eq!(window.focused(cx).as_ref(), Some(&content_focus));
+            // Retire the frame that painted the menu as well as its dismissal frame.
+            window.draw(cx).clear(cx);
+            window.draw(cx).clear(cx);
         });
+        cx.run_until_parked();
+        assert!(menu.borrow().as_ref().is_some_and(|menu| menu.upgrade().is_none()),
+            "dismissal must release the menu retained by element state and its subscription");
     }
 
     const CONTEXT: &str = "context_menu_test";
