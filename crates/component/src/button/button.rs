@@ -640,7 +640,9 @@ impl RenderOnce for Button {
         let focus_handle = window
             .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
             .read(cx)
-            .clone();
+            .clone()
+            .tab_index(self.tab_index)
+            .tab_stop(self.tab_stop && !disabled);
         let is_focused = focus_handle.is_focused(window);
 
         let rounding = match self.rounded {

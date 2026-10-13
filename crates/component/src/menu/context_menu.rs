@@ -517,6 +517,8 @@ fn open_menu(
                         let mut state = shared_state.borrow_mut();
                         state.open = false;
                         state.selection_input = None;
+                        state.menu_view = None;
+                        state._subscription = None;
                         window.refresh();
                     }
                 }
