@@ -847,6 +847,9 @@ impl CommandState {
             .id(self.matched[matched_ix].index_path)
             .test_support()
             .role(Role::ListBoxOption)
+            .when_some(item.label_text().cloned(), |this, label| {
+                this.aria_label(label)
+            })
             .aria_selected(selected)
             .when(disabled, |this| this.text_color(muted_foreground))
             .when(!disabled, |this| {
