@@ -179,6 +179,7 @@ where
         div()
             .id("table")
             .test_support()
+            .role(gpui::Role::Table)
             .size_full()
             .key_context(CONTEXT)
             .track_focus(&focus_handle)
