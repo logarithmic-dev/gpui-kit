@@ -8,7 +8,7 @@ use crate::{
 };
 use gpui::{
     App, Edges, Entity, Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement,
-    Pixels, RenderOnce, Styled, Window, div, prelude::FluentBuilder,
+    Pixels, RenderOnce, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_base::TestSupportExt as _;
 
